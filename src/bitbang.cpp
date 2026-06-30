@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <Arduino.h>
+#include <bitbang.h>
 
 const int sda = 32; //pullup R
 const int scl = 33; //assuming a0
@@ -73,7 +74,7 @@ bool ack(){
     if (sdaState == 0){
         return 1;
     } else {
-        printf("No Ack!");
+        Serial.println("No Ack!");
         stop();
         return 0;
     }
@@ -127,23 +128,12 @@ void setup(){
     set_scl(1);//release it
     set_sda(1);//release it
 }
-
-void loop(){
-    int volReg = 0x01;
-    int busReg = 0x02;  //LSB is 1.25mv. multiply the number u get to get voltage.
-    // registers: shunt voltage, calibration, current (shunt voltage to do my own resistance calc to verify)
-    // need to convert 50v down. will use 2 resistors with the same value. of course, i will do my best to make it as identical as possible, but some form of loss is inherit.
-    // triggered mode: set 00h bits of configuration register to 001 or 010 or 011
-    //conversion ready: alert pin?
-    //int configReg = 0x00;
-    //"establish the pin states before activity occurs"
-    //get the shunt voltage and do stuff. if too slow seperate & thread via qt
-    //0x01 = shunt voltage reg
+uint16_t vols(int reg){
     start();
     send_byte_i2c(ina226,0);
     //printf("ACK 1 - ");
     if (!ack()) return;
-    send_reg_i2c(busReg);  
+    send_reg_i2c(reg);  
    // printf("ACK 2 - ");
     if (!ack()) return;
     start();
@@ -155,7 +145,20 @@ void loop(){
     uint8_t byte2 = recv_byte();
     send_nack();
     uint16_t shuntVol = (byte1 << 8) | byte2;
-    printf("%d - %f\n",shuntVol,(shuntVol * 1.25E-3));
-    delay(500);
+    //printf("%d - %f\n",shuntVol,(shuntVol * 1.25E-3));
     stop();
+    return shuntVol;
+}
+void loop(){
+     //LSB is 1.25mv. multiply the number u get to get voltage.
+    // registers: shunt voltage, calibration, current (shunt voltage to do my own resistance calc to verify)
+    // need to convert 50v down. will use 2 resistors with the same value. of course, i will do my best to make it as identical as possible, but some form of loss is inherit.
+    // triggered mode: set 00h bits of configuration register to 001 or 010 or 011
+    //conversion ready: alert pin?
+    //int configReg = 0x00;
+    //"establish the pin states before activity occurs"
+    //get the shunt voltage and do stuff. if too slow seperate & thread via qt
+    //0x01 = shunt voltage reg
+
+    
 }
