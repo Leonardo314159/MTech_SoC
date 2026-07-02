@@ -4,10 +4,9 @@
 #include <Arduino.h>
 #include <bitbang.h>
 
-const int sda = 32; //pullup R
-const int scl = 33; //assuming a0
+const int sda = 21; //pullup R
+const int scl = 22; //assuming a0
 int ina226 = 0x40;
-
 
 void set_scl(int state){
     digitalWrite(scl, state);
@@ -15,6 +14,16 @@ void set_scl(int state){
 void set_sda (int state){
     digitalWrite(sda, state);
 }
+
+
+void prep(){
+
+    pinMode(sda, OUTPUT_OPEN_DRAIN);    //default [master]
+    pinMode(scl, OUTPUT_OPEN_DRAIN);    //default [master]
+    set_scl(1);//release it
+    set_sda(1);//release it
+}
+
 
 void toggle_pin_i2c(int state){
     set_scl(0);
@@ -74,7 +83,7 @@ bool ack(){
     if (sdaState == 0){
         return 1;
     } else {
-        Serial.println("No Ack!");
+        printf("No Ack!");
         stop();
         return 0;
     }
@@ -121,35 +130,27 @@ void send_ack(){
 
 }
 
-void setup(){
-
-    pinMode(sda, OUTPUT_OPEN_DRAIN);    //default [master]
-    pinMode(scl, OUTPUT_OPEN_DRAIN);    //default [master]
-    set_scl(1);//release it
-    set_sda(1);//release it
-}
-uint16_t vols(int reg){
+uint16_t vols(uint8_t reg){
     start();
     send_byte_i2c(ina226,0);
     //printf("ACK 1 - ");
-    if (!ack()) return;
+    if (!ack()) {return 0xFFFF;}
     send_reg_i2c(reg);  
    // printf("ACK 2 - ");
-    if (!ack()) return;
+    if (!ack()) {return 0xFFFF;}
     start();
     send_byte_i2c(ina226,1);
   //  printf("ACK 3\n");
-    if (!ack()) return;
+    if (!ack()) {return 0xFFFF;}
     uint8_t byte1 = recv_byte();
     send_ack();
     uint8_t byte2 = recv_byte();
     send_nack();
     uint16_t shuntVol = (byte1 << 8) | byte2;
-    //printf("%d - %f\n",shuntVol,(shuntVol * 1.25E-3));
+    //   printf("%d - %f\n",shuntVol,(shuntVol * 1.25E-3));
     stop();
     return shuntVol;
 }
-void loop(){
      //LSB is 1.25mv. multiply the number u get to get voltage.
     // registers: shunt voltage, calibration, current (shunt voltage to do my own resistance calc to verify)
     // need to convert 50v down. will use 2 resistors with the same value. of course, i will do my best to make it as identical as possible, but some form of loss is inherit.
@@ -159,6 +160,3 @@ void loop(){
     //"establish the pin states before activity occurs"
     //get the shunt voltage and do stuff. if too slow seperate & thread via qt
     //0x01 = shunt voltage reg
-
-    
-}

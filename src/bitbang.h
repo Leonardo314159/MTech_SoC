@@ -1,4 +1,9 @@
 #pragma once
 #include <stdint.h>
 
-uint16_t getVoltage(int regs);
+//bitbang
+uint16_t vols(uint8_t regs);
+void prep();
+
+//soc
+double get_soc();
